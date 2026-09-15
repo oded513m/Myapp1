@@ -1,4 +1,4 @@
-const CACHE_NAME = "my-app-v5";
+const CACHE_NAME = "my-app-v7";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -33,6 +33,14 @@ self.addEventListener("activate", (event) => {
       .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+    const appWindow = windows.find((window) => window.url.includes(self.registration.scope));
+    return appWindow ? appWindow.focus() : clients.openWindow("./routine.html");
+  }));
 });
 
 self.addEventListener("fetch", (event) => {

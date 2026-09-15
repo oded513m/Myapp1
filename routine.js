@@ -2,7 +2,7 @@ const today = getDateKey(new Date());
 const storageKey = "daymark-routine-tasks";
 const legacyTodayStorageKey = `daymark-routine-${today}`;
 const laterStorageKey = "daymark-later-activities";
-const notificationStorageKey = "daymark-routine-notified";
+const notificationStateKey = "daymark-routine-notification-state";
 const periods = [
   { id: "morning", title: "Morning", note: "Start with intention" },
   { id: "midday", title: "Midday", note: "Keep your energy steady" },
@@ -25,6 +25,7 @@ const routineNavItems = document.querySelectorAll("[data-routine-view]");
 const routineViews = document.querySelectorAll("[data-routine-panel]");
 let tasks = loadTasks();
 let laterActivities = loadLaterActivities();
+let reminderCheckInProgress = false;
 
 function getDateKey(date) {
   const year = date.getFullYear();
@@ -65,6 +66,65 @@ function saveTasks() {
 
 function saveLaterActivities() {
   localStorage.setItem(laterStorageKey, JSON.stringify(laterActivities));
+}
+
+function loadNotificationState() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(notificationStateKey));
+    return stored && typeof stored === "object" ? stored : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveNotificationState(state) {
+  localStorage.setItem(notificationStateKey, JSON.stringify(state));
+}
+
+function isInstalledPwa() {
+  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+
+function getReminderDate(activityDate, daysBefore) {
+  const date = new Date(`${activityDate}T12:00:00`);
+  date.setDate(date.getDate() - daysBefore);
+  return getDateKey(date);
+}
+
+async function sendReminderNotification(title, body, tag) {
+  if (!isInstalledPwa() || !("Notification" in window) || Notification.permission !== "granted") return;
+  if (!("serviceWorker" in navigator)) return;
+  const registration = await navigator.serviceWorker.ready;
+  await registration.showNotification(title, { body, tag, icon: "./icons/icon-192.svg", badge: "./icons/icon-192.svg" });
+}
+
+async function checkScheduledReminders() {
+  if (!isInstalledPwa() || !("Notification" in window) || Notification.permission !== "granted") return;
+  if (reminderCheckInProgress) return;
+  reminderCheckInProgress = true;
+
+  try {
+    const state = loadNotificationState();
+    for (const activity of laterActivities) {
+      if (activity.complete) continue;
+      const reminderType = activity.date === today
+        ? "due"
+        : getReminderDate(activity.date, 1) === today ? "day-before" : null;
+      if (!reminderType) continue;
+      const stateKey = `${activity.id}-${reminderType}-${activity.date}`;
+      if (state[stateKey]) continue;
+      const message = reminderType === "due" ? `Due today: ${activity.title}` : `Tomorrow: ${activity.title}`;
+      try {
+        await sendReminderNotification("My app reminder", message, stateKey);
+        state[stateKey] = true;
+        saveNotificationState(state);
+      } catch {
+        // Retry on the next check if the service worker is temporarily unavailable.
+      }
+    }
+  } finally {
+    reminderCheckInProgress = false;
+  }
 }
 
 function formatDate(dateKey) {
@@ -122,6 +182,7 @@ function render() {
   renderLaterActivities();
   renderHistory();
   renderReminder();
+  checkScheduledReminders();
 }
 
 function renderReminder() {
@@ -136,11 +197,6 @@ function renderReminder() {
     ? `Due today: ${dueActivities[0].title}`
     : `${count} activities are due today`;
   banner.hidden = false;
-  const notifiedDate = localStorage.getItem(notificationStorageKey);
-  if (notifiedDate !== today && "Notification" in window && Notification.permission === "granted") {
-    new Notification("My app reminder", { body: count === 1 ? dueActivities[0].title : `${count} activities are due today` });
-    localStorage.setItem(notificationStorageKey, today);
-  }
 }
 
 function renderLaterActivities() {
@@ -284,13 +340,14 @@ document.querySelector("#enable-notifications").addEventListener("click", async 
   if (!("Notification" in window)) return;
   const permission = await Notification.requestPermission();
   if (permission === "granted") {
-    localStorage.removeItem(notificationStorageKey);
+    checkScheduledReminders();
     renderReminder();
   }
 });
 
 let activeDate = getDateKey(new Date());
 window.setInterval(() => {
+  checkScheduledReminders();
   const currentDate = getDateKey(new Date());
   if (currentDate !== activeDate) {
     localStorage.setItem(`daymark-routine-${activeDate}`, JSON.stringify(tasks));
