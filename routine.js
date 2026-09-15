@@ -3,6 +3,12 @@ const storageKey = "daymark-routine-tasks";
 const legacyTodayStorageKey = `daymark-routine-${today}`;
 const laterStorageKey = "daymark-later-activities";
 const notificationStateKey = "daymark-routine-notification-state";
+const historyDateFormatter = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  year: "numeric"
+});
 const periods = [
   { id: "morning", title: "Morning", note: "Start with intention" },
   { id: "midday", title: "Midday", note: "Keep your energy steady" },
@@ -26,6 +32,7 @@ const routineViews = document.querySelectorAll("[data-routine-panel]");
 let tasks = loadTasks();
 let laterActivities = loadLaterActivities();
 let reminderCheckInProgress = false;
+let cachedHistoryHtml;
 
 function getDateKey(date) {
   const year = date.getFullYear();
@@ -128,12 +135,7 @@ async function checkScheduledReminders() {
 }
 
 function formatDate(dateKey) {
-  return new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  }).format(new Date(`${dateKey}T12:00:00`));
+  return historyDateFormatter.format(new Date(`${dateKey}T12:00:00`));
 }
 
 function escapeHtml(value) {
@@ -214,13 +216,18 @@ function renderLaterActivities() {
 }
 
 function renderHistory() {
+  if (cachedHistoryHtml !== undefined) {
+    document.querySelector("#history-list").innerHTML = cachedHistoryHtml;
+    return;
+  }
+
   const pastDays = Object.keys(localStorage)
     .filter((key) => key.startsWith("daymark-routine-") && key !== storageKey && key !== legacyTodayStorageKey)
     .map((key) => ({ date: key.replace("daymark-routine-", ""), tasks: loadStoredDay(key) }))
     .filter((day) => day.tasks.length)
     .sort((first, second) => second.date.localeCompare(first.date));
 
-  document.querySelector("#history-list").innerHTML = pastDays.length ? pastDays.map((day) => {
+  cachedHistoryHtml = pastDays.length ? pastDays.map((day) => {
     const complete = day.tasks.filter((task) => task.complete).length;
     return `
       <details class="history-item">
@@ -230,6 +237,7 @@ function renderHistory() {
         </div>
       </details>`;
   }).join("") : `<p class="empty-side">Finished days will appear here.</p>`;
+  document.querySelector("#history-list").innerHTML = cachedHistoryHtml;
 }
 
 function loadStoredDay(key) {
@@ -352,6 +360,7 @@ window.setInterval(() => {
   if (currentDate !== activeDate) {
     localStorage.setItem(`daymark-routine-${activeDate}`, JSON.stringify(tasks));
     saveTasks();
+    cachedHistoryHtml = undefined;
     window.location.reload();
   }
 }, 30000);
