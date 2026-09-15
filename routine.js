@@ -1,5 +1,6 @@
 const today = getDateKey(new Date());
-const storageKey = `daymark-routine-${today}`;
+const storageKey = "daymark-routine-tasks";
+const legacyTodayStorageKey = `daymark-routine-${today}`;
 const laterStorageKey = "daymark-later-activities";
 const notificationStorageKey = "daymark-routine-notified";
 const periods = [
@@ -36,6 +37,11 @@ function loadTasks() {
   try {
     const stored = JSON.parse(localStorage.getItem(storageKey));
     if (Array.isArray(stored)) return stored;
+    const legacyStored = JSON.parse(localStorage.getItem(legacyTodayStorageKey));
+    if (Array.isArray(legacyStored)) {
+      localStorage.setItem(storageKey, JSON.stringify(legacyStored));
+      return legacyStored;
+    }
     const freshTasks = starterTasks.map((task) => ({ ...task }));
     localStorage.setItem(storageKey, JSON.stringify(freshTasks));
     return freshTasks;
@@ -153,7 +159,7 @@ function renderLaterActivities() {
 
 function renderHistory() {
   const pastDays = Object.keys(localStorage)
-    .filter((key) => key.startsWith("daymark-routine-") && key !== storageKey)
+    .filter((key) => key.startsWith("daymark-routine-") && key !== storageKey && key !== legacyTodayStorageKey)
     .map((key) => ({ date: key.replace("daymark-routine-", ""), tasks: loadStoredDay(key) }))
     .filter((day) => day.tasks.length)
     .sort((first, second) => second.date.localeCompare(first.date));
@@ -287,6 +293,7 @@ let activeDate = getDateKey(new Date());
 window.setInterval(() => {
   const currentDate = getDateKey(new Date());
   if (currentDate !== activeDate) {
+    localStorage.setItem(`daymark-routine-${activeDate}`, JSON.stringify(tasks));
     saveTasks();
     window.location.reload();
   }

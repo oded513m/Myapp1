@@ -1,8 +1,5 @@
-const ACCESS_SESSION_KEY = "myapp-access-unlocked";
-
-function normalizeValue(value) {
-  return String(value || "").trim().toLowerCase();
-}
+const ACCESS_STORAGE_KEY = "myapp-access-unlocked";
+const LEGACY_ACCESS_SESSION_KEY = "myapp-access-unlocked";
 
 async function hashValue(value) {
   const data = new TextEncoder().encode(String(value));
@@ -17,11 +14,7 @@ function createAccessLock() {
     <form class="access-lock-panel">
       <p class="eyebrow">Private app</p>
       <h1>Unlock My app</h1>
-      <p class="access-lock-message">Enter your username and password to continue.</p>
-      <label class="field">
-        <span>Username</span>
-        <input name="username" type="text" autocomplete="username" required />
-      </label>
+      <p class="access-lock-message">Enter your password to continue.</p>
       <label class="field">
         <span>Password</span>
         <input name="password" type="password" autocomplete="current-password" required />
@@ -34,11 +27,16 @@ function createAccessLock() {
 }
 
 async function startAccessLock() {
-  if (sessionStorage.getItem(ACCESS_SESSION_KEY) === "true") return;
+  if (localStorage.getItem(ACCESS_STORAGE_KEY) === "true") return;
+
+  // Keep users who already unlocked this browser signed in after the storage change.
+  if (sessionStorage.getItem(LEGACY_ACCESS_SESSION_KEY) === "true") {
+    localStorage.setItem(ACCESS_STORAGE_KEY, "true");
+    return;
+  }
 
   const lock = createAccessLock();
   const form = lock.querySelector("form");
-  const usernameInput = form.elements.username;
   const passwordInput = form.elements.password;
   const error = lock.querySelector(".access-lock-error");
 
@@ -46,20 +44,19 @@ async function startAccessLock() {
     event.preventDefault();
     error.textContent = "";
 
-    const usernameHash = await hashValue(normalizeValue(usernameInput.value));
     const passwordHash = await hashValue(passwordInput.value);
 
-    if (usernameHash !== ACCESS_CREDENTIALS.usernameHash || passwordHash !== ACCESS_CREDENTIALS.passwordHash) {
-      error.textContent = "Incorrect username or password.";
+    if (passwordHash !== ACCESS_CREDENTIALS.passwordHash) {
+      error.textContent = "Incorrect password.";
       passwordInput.select();
       return;
     }
 
-    sessionStorage.setItem(ACCESS_SESSION_KEY, "true");
+    localStorage.setItem(ACCESS_STORAGE_KEY, "true");
     lock.remove();
   });
 
-  usernameInput.focus();
+  passwordInput.focus();
 }
 
 startAccessLock();
