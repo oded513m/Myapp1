@@ -16,7 +16,6 @@ function createAccessLock() {
       </label>
       <p class="access-lock-error" role="alert"></p>
       <button class="primary-button" type="submit">Log in</button>
-      <button class="text-button create-account" type="button">Create account</button>
     </form>`;
   document.body.append(lock);
   return lock;
@@ -47,19 +46,6 @@ async function startAccessLock() {
     });
     if (signInError) error.textContent = signInError.message;
     else finish((await supabase.auth.getUser()).data.user);
-  });
-
-  lock.querySelector(".create-account").addEventListener("click", async () => {
-    error.textContent = "";
-    const formData = new FormData(form);
-    const { data: result, error: signUpError } = await supabase.auth.signUp({
-      email: formData.get("email"),
-      password: formData.get("password"),
-      options: { emailRedirectTo: window.location.origin }
-    });
-    if (signUpError) error.textContent = signUpError.message;
-    else if (result.session) finish(result.user);
-    else error.textContent = "Check your email to confirm your account, then log in.";
   });
 
   form.elements.email.focus();
