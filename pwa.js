@@ -1,10 +1,26 @@
 let deferredInstallPrompt;
 const installButton = document.querySelector("#install-app");
+const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+
+function setInstallButton(text) {
+  if (!installButton) return;
+  installButton.textContent = text;
+  installButton.setAttribute("aria-label", text);
+}
+
+if (installButton && isStandalone) {
+  installButton.hidden = true;
+} else if (installButton && isIos) {
+  setInstallButton("Add to Home Screen");
+} else if (installButton) {
+  setInstallButton("Install app");
+}
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").catch(() => {
-      // The app remains usable if service-worker registration is unavailable.
+      setInstallButton("Open in a browser to install");
     });
   });
 }
@@ -18,15 +34,18 @@ window.addEventListener("beforeinstallprompt", (event) => {
 if (installButton) {
   installButton.addEventListener("click", async () => {
     if (!deferredInstallPrompt) {
-      installButton.textContent = "Use browser menu to install";
-      installButton.setAttribute("aria-label", "Use your browser menu to install this app");
+      if (isIos) {
+        setInstallButton("Tap Share, then Add to Home Screen");
+      } else {
+        setInstallButton("Open browser menu, then Install app");
+      }
       return;
     }
 
     deferredInstallPrompt.prompt();
-    await deferredInstallPrompt.userChoice;
+    const { outcome } = await deferredInstallPrompt.userChoice;
     deferredInstallPrompt = null;
-    installButton.hidden = true;
+    if (outcome === "accepted") installButton.hidden = true;
   });
 }
 
