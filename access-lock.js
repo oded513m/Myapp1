@@ -1,62 +1,68 @@
-const ACCESS_STORAGE_KEY = "myapp-access-unlocked";
-const LEGACY_ACCESS_SESSION_KEY = "myapp-access-unlocked";
-
-async function hashValue(value) {
-  const data = new TextEncoder().encode(String(value));
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 function createAccessLock() {
   const lock = document.createElement("div");
   lock.className = "access-lock";
   lock.innerHTML = `
     <form class="access-lock-panel">
       <p class="eyebrow">Private app</p>
-      <h1>Unlock My app</h1>
-      <p class="access-lock-message">Enter your password to continue.</p>
+      <h1>Private app</h1>
+      <p class="access-lock-message">Sign in with your private account to continue.</p>
+      <label class="field">
+        <span>Email</span>
+        <input name="email" type="email" autocomplete="email" required />
+      </label>
       <label class="field">
         <span>Password</span>
         <input name="password" type="password" autocomplete="current-password" required />
       </label>
       <p class="access-lock-error" role="alert"></p>
       <button class="primary-button" type="submit">Log in</button>
+      <button class="text-button create-account" type="button">Create account</button>
     </form>`;
   document.body.append(lock);
   return lock;
 }
 
 async function startAccessLock() {
-  if (localStorage.getItem(ACCESS_STORAGE_KEY) === "true") return;
-
-  // Keep users who already unlocked this browser signed in after the storage change.
-  if (sessionStorage.getItem(LEGACY_ACCESS_SESSION_KEY) === "true") {
-    localStorage.setItem(ACCESS_STORAGE_KEY, "true");
-    return;
+  const lock = createAccessLock();
+  const { data } = await supabase.auth.getSession();
+  if (data.session) {
+    lock.remove();
+    return data.session.user;
   }
 
-  const lock = createAccessLock();
   const form = lock.querySelector("form");
-  const passwordInput = form.elements.password;
   const error = lock.querySelector(".access-lock-error");
+  const finish = (user) => {
+    lock.remove();
+    return user;
+  };
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     error.textContent = "";
-
-    const passwordHash = await hashValue(passwordInput.value);
-
-    if (passwordHash !== ACCESS_CREDENTIALS.passwordHash) {
-      error.textContent = "Incorrect password.";
-      passwordInput.select();
-      return;
-    }
-
-    localStorage.setItem(ACCESS_STORAGE_KEY, "true");
-    lock.remove();
+    const formData = new FormData(form);
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: formData.get("email"),
+      password: formData.get("password")
+    });
+    if (signInError) error.textContent = signInError.message;
+    else finish((await supabase.auth.getUser()).data.user);
   });
 
-  passwordInput.focus();
+  lock.querySelector(".create-account").addEventListener("click", async () => {
+    error.textContent = "";
+    const formData = new FormData(form);
+    const { data: result, error: signUpError } = await supabase.auth.signUp({
+      email: formData.get("email"),
+      password: formData.get("password"),
+      options: { emailRedirectTo: window.location.origin }
+    });
+    if (signUpError) error.textContent = signUpError.message;
+    else if (result.session) finish(result.user);
+    else error.textContent = "Check your email to confirm your account, then log in.";
+  });
+
+  form.elements.email.focus();
 }
 
-startAccessLock();
+window.daymarkAuthReady = startAccessLock();

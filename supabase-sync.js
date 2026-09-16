@@ -50,7 +50,10 @@ const daymarkSync = (() => {
         }
         const { data: result, error: signUpError } = await client.auth.signUp({
           email: data.get("email"),
-          password: data.get("password")
+          password: data.get("password"),
+          options: {
+            emailRedirectTo: window.location.origin
+          }
         });
         if (signUpError) {
           error.textContent = signUpError.message;
@@ -66,8 +69,9 @@ const daymarkSync = (() => {
   }
 
   async function user() {
+    if (window.daymarkAuthReady) await window.daymarkAuthReady;
     const { data } = await client.auth.getUser();
-    return data.user || await showAuthPrompt();
+    return data.user || null;
   }
 
   async function loadTransactions(localTransactions) {

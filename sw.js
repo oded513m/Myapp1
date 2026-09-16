@@ -8,7 +8,6 @@ const APP_SHELL = [
   "./tracker.css",
   "./routine.css",
   "./script.js",
-  "./access-credentials.js",
   "./access-lock.js",
   "./supabase-config.js",
   "./supabase-sync.js",
