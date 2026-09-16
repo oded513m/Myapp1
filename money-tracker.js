@@ -22,6 +22,7 @@ function loadTransactions() {
 
 function saveTransactions() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+  daymarkSync.saveTransactions(transactions).catch(() => {});
 }
 
 function formatAmount(amount) {
@@ -197,3 +198,8 @@ incomeList.addEventListener("click", deleteTransaction);
 expenseList.addEventListener("click", deleteTransaction);
 
 render();
+daymarkSync.loadTransactions(transactions).then((cloudTransactions) => {
+  transactions.splice(0, transactions.length, ...cloudTransactions);
+  saveTransactions();
+  render();
+}).catch(() => {});

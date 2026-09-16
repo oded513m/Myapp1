@@ -1,4 +1,4 @@
-const CACHE_NAME = "my-app-v8";
+const CACHE_NAME = "my-app-v9";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -10,6 +10,8 @@ const APP_SHELL = [
   "./script.js",
   "./access-credentials.js",
   "./access-lock.js",
+  "./supabase-config.js",
+  "./supabase-sync.js",
   "./money-tracker.js",
   "./routine.js",
   "./pwa.js",

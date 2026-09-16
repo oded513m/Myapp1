@@ -69,10 +69,12 @@ function loadLaterActivities() {
 
 function saveTasks() {
   localStorage.setItem(storageKey, JSON.stringify(tasks));
+  daymarkSync.saveRoutine(tasks, laterActivities).catch(() => {});
 }
 
 function saveLaterActivities() {
   localStorage.setItem(laterStorageKey, JSON.stringify(laterActivities));
+  daymarkSync.saveRoutine(tasks, laterActivities).catch(() => {});
 }
 
 function loadNotificationState() {
@@ -366,3 +368,11 @@ window.setInterval(() => {
 }, 30000);
 
 render();
+daymarkSync.loadRoutine({ tasks, laterActivities }).then((cloudData) => {
+  tasks = cloudData.tasks;
+  laterActivities = cloudData.laterActivities;
+  saveTasks();
+  saveLaterActivities();
+  cachedHistoryHtml = undefined;
+  render();
+}).catch(() => {});
