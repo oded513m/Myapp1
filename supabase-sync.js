@@ -1,5 +1,5 @@
 const daymarkSync = (() => {
-  const client = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+  const client = window.daymarkSupabase;
 
   async function user() {
     if (window.daymarkAuthReady) await window.daymarkAuthReady;

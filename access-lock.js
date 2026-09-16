@@ -23,7 +23,7 @@ function createAccessLock() {
 
 async function startAccessLock() {
   const lock = createAccessLock();
-  const { data } = await supabase.auth.getSession();
+  const { data } = await daymarkSupabase.auth.getSession();
   if (data.session) {
     lock.remove();
     return data.session.user;
@@ -40,12 +40,12 @@ async function startAccessLock() {
     event.preventDefault();
     error.textContent = "";
     const formData = new FormData(form);
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    const { error: signInError } = await daymarkSupabase.auth.signInWithPassword({
       email: formData.get("email"),
       password: formData.get("password")
     });
     if (signInError) error.textContent = signInError.message;
-    else finish((await supabase.auth.getUser()).data.user);
+    else finish((await daymarkSupabase.auth.getUser()).data.user);
   });
 
   form.elements.email.focus();
