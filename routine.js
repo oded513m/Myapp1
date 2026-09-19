@@ -104,7 +104,7 @@ async function sendReminderNotification(title, body, tag) {
   if (!isInstalledPwa() || !("Notification" in window) || Notification.permission !== "granted") return;
   if (!("serviceWorker" in navigator)) return;
   const registration = await navigator.serviceWorker.ready;
-  await registration.showNotification(title, { body, tag, icon: "./icons/icon-192.svg", badge: "./icons/icon-192.svg" });
+  await registration.showNotification(title, { body, tag, icon: "./icons/app-icon.jpg", badge: "./icons/app-icon.jpg" });
 }
 
 async function checkScheduledReminders() {
